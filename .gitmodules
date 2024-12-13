@@ -1,0 +1,9 @@
+[submodule "externals/capstone"]
+	path = externals/capstone
+	url = https://github.com/capstone-engine/capstone.git
+[submodule "externals/uvw"]
+	path = externals/uvw
+	url = https://github.com/skypjack/uvw.git
+[submodule "externals/dynarmic"]
+	path = externals/dynarmic
+	url = https://github.com/yuzu-mirror/dynarmic.git

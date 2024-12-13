@@ -1,0 +1,4 @@
+M8_V3_3_3_HEADLESS.hex:
+  md5sum: 8709541ec9308c5b9c9fb6c318884f40
+  symbols:
+    setup_done: 0x0003500e
