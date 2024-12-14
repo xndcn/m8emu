@@ -13,27 +13,35 @@ using namespace std::chrono_literals;
 
 namespace m8 {
 
-struct __attribute__ ((packed)) _AudioStream
+class _AudioStream
 {
-    u32 vtable;                // 0x00, _AudioStream::update()
-    u16 cpu_cycles;            // 0x04
-    u16 cpu_cycles_max;        // 0x06
-    u32 next_update_ptr;       // 0x08, _AudioStream*
-    bool active;               // 0x0c
-    u8 num_inputs;             // 0x0d
-    u8 numConnections;         // 0x0e
-    u8 padding;
-    u32 destination_list_ptr;  // 0x10, _AudioConnection*
-    u32 inputQueue_ptr;        // 0x14, audio_block_t**
-};
+public:
+    u32 vtable() { return *(u32*)this; } // 0x00, _AudioStream::update()
+    bool active() { return *(u8*)((u8*)this + active_offset); }
+    u32 next_update_ptr() { return *(u32*)((u8*)this + next_update_offset); }
 
-struct __attribute__ ((packed)) _AudioStream_F32
-{
-    _AudioStream root;
-    u8 num_inputs;             // 0x18
-    u8 padding[3];
-    u32 destination_list_ptr;  // 0x1c, _AudioConnection*
-    u32 inputQueue_ptr;        // 0x20, audio_block_t**
+    u8 num_inputs() { return *(u8*)((u8*)this + (is_f32() ? num_inputs_f32_offset : num_inputs_offset)); }
+    u32 destination_list_ptr() { return *(u32*)((u8*)this + (is_f32() ? destination_list_f32_offset : destination_list_offset)); }
+
+    static void Initialize()
+    {
+        auto& config = FirmwareConfig::GlobalConfig();
+        active_offset = config.GetValue<u32>("AudioStream_offset_active");
+        num_inputs_offset = config.GetValue<u32>("AudioStream_offset_num_inputs");
+        next_update_offset = config.GetValue<u32>("AudioStream_offset_next_update");
+        destination_list_offset = config.GetValue<u32>("AudioStream_offset_destination_list");
+        num_inputs_f32_offset = config.GetValue<u32>("AudioStream_offset_num_inputs_f32");
+        destination_list_f32_offset = config.GetValue<u32>("AudioStream_offset_destination_list_f32");
+    }
+
+private:
+    bool is_f32() { return *(u32*)((u8*)this + destination_list_offset) == 0; }
+    static inline u32 active_offset;
+    static inline u32 num_inputs_offset;
+    static inline u32 num_inputs_f32_offset;
+    static inline u32 next_update_offset;
+    static inline u32 destination_list_offset;
+    static inline u32 destination_list_f32_offset;
 };
 
 struct __attribute__ ((packed)) _AudioConnection
@@ -46,19 +54,6 @@ struct __attribute__ ((packed)) _AudioConnection
     u32 next_dest_ptr; // 0x0c, _AudioConnection*
     u8  isConnected;   // 0x10
 };
-
-static_assert(offsetof(_AudioStream, cpu_cycles) == 0x04);
-static_assert(offsetof(_AudioStream, cpu_cycles_max) == 0x06);
-static_assert(offsetof(_AudioStream, next_update_ptr) == 0x08);
-static_assert(offsetof(_AudioStream, active) == 0x0c);
-static_assert(offsetof(_AudioStream, num_inputs) == 0x0d);
-static_assert(offsetof(_AudioStream, numConnections) == 0x0e);
-static_assert(offsetof(_AudioStream, destination_list_ptr) == 0x10);
-static_assert(offsetof(_AudioStream, inputQueue_ptr) == 0x14);
-
-static_assert(offsetof(_AudioStream_F32, num_inputs) == 0x18);
-static_assert(offsetof(_AudioStream_F32, destination_list_ptr) == 0x1c);
-static_assert(offsetof(_AudioStream_F32, inputQueue_ptr) == 0x20);
 
 static_assert(offsetof(_AudioConnection, src_ptr) == 0x00);
 static_assert(offsetof(_AudioConnection, dst_ptr) == 0x04);
@@ -151,6 +146,7 @@ void M8AudioProcessor::UnlockUSB()
 
 void M8AudioProcessor::Setup()
 {
+    _AudioStream::Initialize();
     auto& config = FirmwareConfig::GlobalConfig();
     u32 processorNums = config.GetValue<u32>("audio_processor_nums");
     ext::LogInfo("AudioProcessor: multi threading nums = %d", processorNums);
@@ -216,10 +212,10 @@ void M8AudioProcessor::ParseConnections(u32 first_update)
     u32 ptr = first_update;
     while (ptr) {
         auto* stream = (_AudioStream*)callbacks.MemoryMap(ptr);
-        u32 update_func = callbacks.MemoryRead32(stream->vtable);
-        ext::LogDebug("_AudioStream(0x%x): update(0x%x), num_inputs = %d", ptr, update_func, stream->num_inputs);
-        if (!stream->active) {
-            ptr = stream->next_update_ptr;
+        u32 update_func = callbacks.MemoryRead32(stream->vtable());
+        ext::LogDebug("_AudioStream(0x%x): update(0x%x), num_inputs = %d, active = %s", ptr, update_func, stream->num_inputs(), stream->active() ? "true" : "false");
+        if (!stream->active()) {
+            ptr = stream->next_update_ptr();
             continue;
         }
         auto& pipeline = PIPELINE(ptr);
@@ -227,11 +223,7 @@ void M8AudioProcessor::ParseConnections(u32 first_update)
         pipeline.this_ptr = ptr;
         pipeline.update_func = update_func;
         pipelines.push_back(ptr);
-        if (stream->destination_list_ptr) {
-            ptr = stream->destination_list_ptr;
-        } else {
-            ptr = ((_AudioStream_F32*)stream)->destination_list_ptr;
-        }
+        ptr = stream->destination_list_ptr();
         while (ptr) {
             auto* connection = (_AudioConnection*)callbacks.MemoryMap(ptr);
             ext::LogDebug("\t_AudioConnection(0x%x): 0x%x(%d) -> 0x%x(%d) %s", ptr, connection->src_ptr, connection->src_index, connection->dst_ptr, connection->dest_index, connection->isConnected ? "connected" : "");
@@ -241,7 +233,7 @@ void M8AudioProcessor::ParseConnections(u32 first_update)
             }
             ptr = connection->next_dest_ptr;
         }
-        ptr = stream->next_update_ptr;
+        ptr = stream->next_update_ptr();
     }
     pipelineFinished.resize(pipelines.size());
 }
