@@ -1,5 +1,12 @@
 M8_V3_3_3_HEADLESS.hex:
   md5sum: 8709541ec9308c5b9c9fb6c318884f40
+  configs:
+    AudioStream_offset_active: 0x0c
+    AudioStream_offset_next_update: 0x08
+    AudioStream_offset_num_inputs: 0x0d
+    AudioStream_offset_destination_list: 0x10
+    AudioStream_offset_num_inputs_mod: 0x18
+    AudioStream_offset_destination_list_mod: 0x1c
   symbols:
     setup_done: 0x0003500e
     AudioStream_first_update: 0x20010818
@@ -8,3 +15,21 @@ M8_V3_3_3_HEADLESS.hex:
     AudioStream_receiveWritable: [0x0002c650, 0x0002c696]
     AudioStream_allocate: [0x0002c4fc, 0x0002c592]
     AudioStream_release: [0x0002c5a8, 0x0002c5e6]
+
+M8_V4_0_0_HEADLESS.hex:
+  md5sum: ecfc88e7cffa3bdf248b9b029d4b48d5
+  configs:
+    AudioStream_offset_active: 0x08
+    AudioStream_offset_next_update: 0x0c
+    AudioStream_offset_num_inputs: 0x09
+    AudioStream_offset_destination_list: 0x14
+    AudioStream_offset_num_inputs_mod: 0x1c
+    AudioStream_offset_destination_list_mod: 0x20
+  symbols:
+    setup_done: 0x000333d6
+    AudioStream_first_update: 0x20012f9c
+  ranges:
+    AudioStream_transmit: [0x0002a9a8,0x0002a9ee]
+    AudioStream_receiveWritable: [0x0002aa08,0x0002aa4e]
+    AudioStream_allocate: [0x0002a8b4,0x0002a94a]
+    AudioStream_release: [0x0002a960,0x0002a99e]
