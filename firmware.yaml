@@ -5,8 +5,10 @@ M8_V3_3_3_HEADLESS.hex:
     AudioStream_offset_next_update: 0x08
     AudioStream_offset_num_inputs: 0x0d
     AudioStream_offset_destination_list: 0x10
+    AudioStream_offset_inputQueue: 0x14
     AudioStream_offset_num_inputs_mod: 0x18
     AudioStream_offset_destination_list_mod: 0x1c
+    AudioStream_offset_inputQueue_mod: 0x20
   symbols:
     setup_done: 0x0003500e
     AudioStream_first_update: 0x20010818
@@ -23,6 +25,7 @@ M8_V4_0_0_HEADLESS.hex:
     AudioStream_offset_next_update: 0x0c
     AudioStream_offset_num_inputs: 0x09
     AudioStream_offset_destination_list: 0x14
+    AudioStream_offset_inputQueue: 0x18
     AudioStream_offset_num_inputs_mod: 0x1c
     AudioStream_offset_destination_list_mod: 0x20
   symbols:

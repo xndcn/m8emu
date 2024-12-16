@@ -26,6 +26,7 @@ public:
 
     void LockAudioBlock();
     void UnlockAudioBlock();
+    void PushUSBAudioBlock(u32 stream);
 
 private:
     void ParseConnections(u32 first_update);

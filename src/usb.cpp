@@ -242,9 +242,9 @@ void USB::HandleDataRead(int ep, int interval, std::size_t limit, std::function<
                     mutex.unlock();
                 } else {
                     mutex.unlock();
-                    endpointCompleteTx |= 1 << ep;
-                    interrupt = true;
-                    UpdateInterrupts();
+//                    endpointCompleteTx |= 1 << ep;
+//                    interrupt = true;
+//                    UpdateInterrupts();
                     mutex.lock();
                     auto callback = endpointTxCallbacks[ep].front();
                     endpointTxCallbacks[ep].pop();
@@ -269,6 +269,15 @@ void USB::HandleDataRead(int ep, int interval, std::size_t limit, std::function<
         endpointBuffers[ep].pop(buffer.data(), size);
         mutex.unlock();
         callback(buffer.data(), size);
+    }
+}
+
+void USB::PushData(int ep, uint8_t* data, std::size_t length)
+{
+    std::lock_guard lock(mutex);
+    endpointBuffers[ep].push(data, length);
+    if (endpointBuffers[ep].size() > ENDPOINT_BUFFER_SIZE) {
+        endpointBuffers[ep].pop(endpointBuffers[ep].size() - ENDPOINT_BUFFER_SIZE);
     }
 }
 

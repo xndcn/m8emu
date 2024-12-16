@@ -6,7 +6,7 @@
 #include "config.h"
 
 using namespace std::chrono_literals;
-#define AUDIO_PROCESS_INTERVAL 1450us
+#define AUDIO_PROCESS_INTERVAL 1451us
 #define AUDIO_PROCESSOR_NUMS 2
 
 namespace m8 {
@@ -20,6 +20,7 @@ public:
 
     u8 num_inputs() { return *(u8*)((u8*)this + (is_mod() ? num_inputs_mod_offset : num_inputs_offset)); }
     u32 destination_list_ptr() { return *(u32*)((u8*)this + (is_mod() ? destination_list_mod_offset : destination_list_offset)); }
+    u32 inputQueue(int index) { return *(u32*)((u8*)this + (is_mod() ? inputQueue_mod_offset : inputQueue_offset)) + index * sizeof(u32); }
 
     static void Initialize()
     {
@@ -30,16 +31,22 @@ public:
         destination_list_offset = config.GetValue<u32>("AudioStream_offset_destination_list");
         num_inputs_mod_offset = config.GetValue<u32>("AudioStream_offset_num_inputs_mod");
         destination_list_mod_offset = config.GetValue<u32>("AudioStream_offset_destination_list_mod");
+        inputQueue_offset = config.GetValue<u32>("AudioStream_offset_inputQueue");
+        inputQueue_mod_offset = config.GetValue<u32>("AudioStream_offset_inputQueue_mod");
+
     }
 
 private:
-    bool is_mod() { return *(u32*)((u8*)this + destination_list_offset) == 0; }
+    bool is_mod() { return is_mod_map.count(vtable()) ? is_mod_map[vtable()] : *(u32*)((u8*)this + destination_list_offset) == 0 && *(u32*)((u8*)this + destination_list_mod_offset) != 0; }
+    static inline std::map<u32, bool> is_mod_map;
     static inline u32 active_offset;
     static inline u32 num_inputs_offset;
     static inline u32 num_inputs_mod_offset;
     static inline u32 next_update_offset;
     static inline u32 destination_list_offset;
     static inline u32 destination_list_mod_offset;
+    static inline u32 inputQueue_offset;
+    static inline u32 inputQueue_mod_offset;
 };
 
 struct __attribute__ ((packed)) _AudioConnection
@@ -60,6 +67,14 @@ static_assert(offsetof(_AudioConnection, dest_index) == 0x09);
 static_assert(offsetof(_AudioConnection, next_dest_ptr) == 0x0c);
 static_assert(offsetof(_AudioConnection, isConnected) == 0x10);
 
+struct __attribute__ ((packed)) audio_block_t {
+    u8  ref_count;
+    u8  reserved1;
+    u16 memory_pool_index;
+    u16 data[0];
+};
+static_assert(offsetof(audio_block_t, data) == 0x04);
+
 M8AudioProcessor::M8AudioProcessor(M8Emulator& emu) : emu(emu)
 {
     for (int i = 0; i < AUDIO_PROCESSOR_NUMS; i++)
@@ -78,6 +93,12 @@ static void UnlockBlockWrapper(u64 ptr)
 {
     M8AudioProcessor* audio = (M8AudioProcessor*)ptr;
     audio->UnlockAudioBlock();
+}
+
+static void PushUSBAudioWrapper(u64 ptr, u64 param)
+{
+    M8AudioProcessor* audio = (M8AudioProcessor*)ptr;
+    audio->PushUSBAudioBlock(param);
 }
 
 static void AddLockHook(M8AudioProcessor& audio, M8Emulator& emu, u32 begin, u32 end)
@@ -122,6 +143,11 @@ void M8AudioProcessor::Setup()
         auto [begin, end] = range;
         AddLockHook(*this, emu, begin, end);
     }
+
+    emu.Callbacks().AddTranslationHook(config.GetSymbolAddress("AudioOutputUSB_update"), [this](u32, Dynarmic::A32::IREmitter& ir) {
+	ext::U64 param(ir, ext::Reg::R0);
+        ext::CallHostFunction(ir, PushUSBAudioWrapper, (u64)this, param);
+    });
 
     timer.SetInterval(AUDIO_PROCESS_INTERVAL, [this](Timer&) {
         auto& callbacks = emu.Callbacks();
@@ -243,6 +269,22 @@ void M8AudioProcessor::Process()
     }
     auto duration = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now() - now).count();
     ext::LogDebug("AudioProcessor duration = %d us", duration);
+}
+
+void M8AudioProcessor::PushUSBAudioBlock(u32 ptr)
+{
+    auto& callbacks = emu.Callbacks();
+    auto* stream = (_AudioStream*)callbacks.MemoryMap(ptr);
+    std::lock_guard lock(audioMutex);
+    auto* left_audio = (audio_block_t*)callbacks.MemoryMap(callbacks.MemoryRead32(stream->inputQueue(0)));
+    auto* right_audio = (audio_block_t*)callbacks.MemoryMap(callbacks.MemoryRead32(stream->inputQueue(1)));
+    u16* left = left_audio->data;
+    u16* right = right_audio->data;
+    std::vector<u32> buffer(64);
+    for (int i = 0; i < buffer.size(); i++) {
+        buffer[i] = (*right++ << 16) | (*left++ & 0xFFFF);
+    }
+    emu.USBDevice().PushData(5, (u8*)buffer.data(), buffer.size() * sizeof(u32));
 }
 
 } // namespace m8

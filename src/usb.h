@@ -13,6 +13,7 @@ public:
     virtual void HandleSetupPacket(USBIP_SETUP_BYTES setup, uint8_t* data, std::size_t length, std::function<void(uint8_t*, std::size_t)> callback) = 0;
     virtual void HandleDataWrite(int ep, int interval, uint8_t* data, std::size_t length) = 0;
     virtual void HandleDataRead(int ep, int interval, std::size_t limit, std::function<void(uint8_t*, std::size_t)> callback) = 0;
+    virtual void PushData(int ep, uint8_t* data, std::size_t length) = 0;
 };
 
 enum class EndpointType {
@@ -71,6 +72,7 @@ public:
     void HandleSetupPacket(USBIP_SETUP_BYTES setup, uint8_t* data, std::size_t length, std::function<void(uint8_t*, std::size_t)> callback) override;
     void HandleDataWrite(int ep, int interval, uint8_t* data, std::size_t length) override;
     void HandleDataRead(int ep, int interval, std::size_t limit, std::function<void(uint8_t*, std::size_t)> callback) override;
+    void PushData(int ep, uint8_t* data, std::size_t length) override;
 
 private:
     void UpdateInterrupts();
