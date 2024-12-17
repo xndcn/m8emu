@@ -1,4 +1,13 @@
+'*':
+  configs:
+    audio_processor_nums: 2
 M8_V3_3_3_HEADLESS.hex:
   md5sum: 8709541ec9308c5b9c9fb6c318884f40
   symbols:
     setup_done: 0x0003500e
+    AudioStream::first_update: 0x20010818
+  ranges:
+    AudioStream_F32::transmit: [0x0002c5f0, 0x0002c636]
+    AudioStream_F32::receiveWritable_f32: [0x0002c650, 0x0002c696]
+    AudioStream_F32::allocate: [0x0002c4fc, 0x0002c592]
+    AudioStream_F32::release: [0x0002c5a8, 0x0002c5e6]
