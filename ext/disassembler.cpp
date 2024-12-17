@@ -27,10 +27,20 @@ bool IsCodeExit(const std::string& mnemonic, const std::string& op)
 {
     if (mnemonic == "bx" && op == "lr") {
         return true;
-    } else if (mnemonic == "pop" && op.find("pc") != std::string::npos) {
+    } else if ((mnemonic == "pop" || mnemonic == "pop.w") && op.find("pc") != std::string::npos) {
         return true;
     }
     return false;
+}
+
+bool IsCodeDisableInterrupt(const std::string& mnemonic, const std::string& op)
+{
+    return mnemonic == "cpsid" && op == "i";
+}
+
+bool IsCodeEnableInterrupt(const std::string& mnemonic, const std::string& op)
+{
+    return mnemonic == "cpsie" && op == "i";
 }
 
 } // namespace ext

@@ -54,6 +54,7 @@ template<class T> T FirmwareConfig::GetValue(const std::string& key)
 }
 
 template u32 FirmwareConfig::GetValue<u32>(const std::string& key);
+template bool FirmwareConfig::GetValue<bool>(const std::string& key);
 
 u32 FirmwareConfig::GetSymbolAddress(const std::string& symbol)
 {

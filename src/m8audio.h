@@ -24,8 +24,11 @@ public:
     void Setup();
     void Process();
 
-    void LockAudioBlock();
-    void UnlockAudioBlock();
+    void LockBlock();
+    void UnlockBlock();
+
+    void LockUSB();
+    void UnlockUSB();
 
 private:
     void ParseConnections(u32 first_update);
@@ -39,6 +42,8 @@ private:
     std::condition_variable workDone;
     std::vector<std::thread> pool;
     std::recursive_mutex blockMutex;
+    std::recursive_mutex usbMutex;
+    bool useUSBLock = false;
     Timer timer;
 
     std::vector<u32> pipelines;
