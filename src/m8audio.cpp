@@ -71,42 +71,82 @@ M8AudioProcessor::M8AudioProcessor(M8Emulator& emu) : emu(emu)
 {
 }
 
-static void LockBlockWrapper(u64 ptr)
+enum class LockType {
+    Block,
+    USB,
+};
+
+static void LockWrapper(u64 ptr, u64 type)
 {
     M8AudioProcessor* audio = (M8AudioProcessor*)ptr;
-    audio->LockAudioBlock();
+    if (type == (u64)LockType::Block) {
+        audio->LockBlock();
+    } else if (type == (u64)LockType::USB) {
+        audio->LockUSB();
+    }
 }
 
-static void UnlockBlockWrapper(u64 ptr)
+static void UnlockWrapper(u64 ptr, u64 type)
 {
     M8AudioProcessor* audio = (M8AudioProcessor*)ptr;
-    audio->UnlockAudioBlock();
+    if (type == (u64)LockType::Block) {
+        audio->UnlockBlock();
+    } else if (type == (u64)LockType::USB) {
+        audio->UnlockUSB();
+    }
 }
 
-static void AddLockHook(M8AudioProcessor& audio, M8Emulator& emu, u32 begin, u32 end)
+static void AddLockHook(M8AudioProcessor& audio, M8Emulator& emu, u32 begin, u32 end, LockType type)
 {
     auto& callbacks = emu.Callbacks();
-    callbacks.AddTranslationHook(begin, [&audio](u32 pc, Dynarmic::A32::IREmitter& ir) {
-        ext::CallHostFunction(ir, LockBlockWrapper, (u64)&audio);
+    callbacks.AddTranslationHook(begin, [&audio, type](u32 pc, Dynarmic::A32::IREmitter& ir) {
+        ext::CallHostFunction(ir, LockWrapper, (u64)&audio, (u64)type);
     });
     u8* code = (u8*)emu.Callbacks().MemoryMap(begin);
-    ext::DisassembleIter(code, begin, end - begin, [&callbacks, &audio](u32 addr, const std::string& mnemonic, const std::string& op) {
+    ext::DisassembleIter(code, begin, end - begin, [&callbacks, &audio, type](u32 addr, const std::string& mnemonic, const std::string& op) {
         if (ext::IsCodeExit(mnemonic, op)) {
-            callbacks.AddTranslationHook(addr, [&audio](u32 pc, Dynarmic::A32::IREmitter& ir) {
-                ext::CallHostFunction(ir, UnlockBlockWrapper, (u64)&audio);
+            callbacks.AddTranslationHook(addr, [&audio, type](u32 pc, Dynarmic::A32::IREmitter& ir) {
+                ext::CallHostFunction(ir, UnlockWrapper, (u64)&audio, (u64)type);
             });
         }
     });
 }
 
-void M8AudioProcessor::LockAudioBlock()
+static void AddLockInterruptHook(M8AudioProcessor& audio, M8Emulator& emu, u32 begin, u32 end, LockType type)
+{
+    auto& callbacks = emu.Callbacks();
+    u8* code = (u8*)emu.Callbacks().MemoryMap(begin);
+    ext::DisassembleIter(code, begin, end - begin, [&callbacks, &audio, type](u32 addr, const std::string& mnemonic, const std::string& op) {
+        if (ext::IsCodeDisableInterrupt(mnemonic, op)) {
+            callbacks.AddTranslationHook(addr, [&audio, &callbacks, type](u32 pc, Dynarmic::A32::IREmitter& ir) {
+                ext::CallHostFunction(ir, LockWrapper, (u64)&audio, (u64)type);
+            });
+        } else if (ext::IsCodeEnableInterrupt(mnemonic, op)) {
+            callbacks.AddTranslationHook(addr, [&audio, &callbacks, type](u32 pc, Dynarmic::A32::IREmitter& ir) {
+                ext::CallHostFunction(ir, UnlockWrapper, (u64)&audio, (u64)type);
+            });
+        }
+    });
+}
+
+void M8AudioProcessor::LockBlock()
 {
     blockMutex.lock();
 }
 
-void M8AudioProcessor::UnlockAudioBlock()
+void M8AudioProcessor::UnlockBlock()
 {
     blockMutex.unlock();
+}
+
+void M8AudioProcessor::LockUSB()
+{
+    usbMutex.lock();
+}
+
+void M8AudioProcessor::UnlockUSB()
+{
+    usbMutex.unlock();
 }
 
 void M8AudioProcessor::Setup()
@@ -130,16 +170,38 @@ void M8AudioProcessor::Setup()
         };
         for (const auto& range : ranges) {
             auto [begin, end] = range;
-            AddLockHook(*this, emu, begin, end);
+            AddLockHook(*this, emu, begin, end, LockType::Block);
+        }
+    }
+    if (config.GetValue<bool>("audio_processor_fine_grained_lock"))
+    {
+        useUSBLock = true;
+        ext::LogInfo("AudioProcessor: fine grained lock enabled");
+        auto [usb_callback_begin, usb_callback_end] = config.GetEntryRange("usb_audio_transmit_callback");
+        AddLockHook(*this, emu, usb_callback_begin, usb_callback_end, LockType::USB);
+        std::vector<std::tuple<u32, u32>> ranges = {
+            config.GetEntryRange("AudioOutputUSB::update"),
+            config.GetEntryRange("AudioStream::allocate"),
+            config.GetEntryRange("AudioStream::release"),
+        };
+        for (const auto& range : ranges) {
+            auto [begin, end] = range;
+            AddLockInterruptHook(*this, emu, begin, end, LockType::USB);
         }
     }
 
-    timer.SetInterval(AUDIO_PROCESS_INTERVAL, [this](Timer&) {
-        auto& callbacks = emu.Callbacks();
-        callbacks.Lock();
-        Process();
-        callbacks.Unlock();
-    });
+    if (useUSBLock) {
+        timer.SetInterval(AUDIO_PROCESS_INTERVAL, [this](Timer&) {
+            Process();
+        });
+    } else {
+        timer.SetInterval(AUDIO_PROCESS_INTERVAL, [this](Timer&) {
+            auto& callbacks = emu.Callbacks();
+            callbacks.Lock();
+            Process();
+            callbacks.Unlock();
+        });
+    }
     timer.Start();
 }
 
