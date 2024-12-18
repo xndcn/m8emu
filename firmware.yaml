@@ -1,6 +1,7 @@
 '*':
   configs:
     audio_processor_nums: 2
+
 M8_V3_3_3_HEADLESS.hex:
   md5sum: 8709541ec9308c5b9c9fb6c318884f40
   configs:
@@ -14,6 +15,7 @@ M8_V3_3_3_HEADLESS.hex:
   symbols:
     setup_done: 0x0003500e
     AudioStream::first_update: 0x20010818
+    usb_audio_transmit_callback_underrun: 0x0003664e
   ranges:
     AudioStream_F32::transmit: [0x0002c5f0, 0x0002c636]
     AudioStream_F32::receiveWritable_f32: [0x0002c650, 0x0002c696]
@@ -36,6 +38,7 @@ M8_V4_0_0_HEADLESS.hex:
   symbols:
     setup_done: 0x000333d6
     AudioStream::first_update: 0x20012f9c
+    usb_audio_transmit_callback_underrun: 0x00034a16
   ranges:
     AudioStream_F32::transmit: [0x0002a9a8, 0x0002a9ee]
     AudioStream_F32::receiveWritable_f32: [0x0002aa08, 0x0002aa4e]
