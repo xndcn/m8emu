@@ -185,6 +185,9 @@ void M8AudioProcessor::Setup()
             AddLockInterruptHook(*this, emu, begin, end, LockType::USB);
         }
     }
+    emu.Callbacks().AddTranslationHook(config.GetSymbolAddress("usb_audio_transmit_callback_underrun"), [this](u32 pc, Dynarmic::A32::IREmitter&) {
+        ext::LogWarn("AudioProcessor: usb audio buffer underrun");
+    });
 
     if (useUSBLock) {
         timer.SetInterval(AUDIO_PROCESS_INTERVAL, [this](Timer&) {
@@ -317,7 +320,7 @@ void M8AudioProcessor::Process()
     }
     auto duration = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now() - now).count();
     if (duration > AUDIO_PROCESS_INTERVAL.count()) {
-        ext::LogWarn("AudioProcessor: process duration = %d us > AUDIO_PROCESS_INTERVAL (%d)", duration, AUDIO_PROCESS_INTERVAL.count());
+        ext::LogDebug("AudioProcessor: process duration = %d us > AUDIO_PROCESS_INTERVAL (%d)", duration, AUDIO_PROCESS_INTERVAL.count());
     }
 }
 
