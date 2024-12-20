@@ -17,9 +17,12 @@
 #define FLASH_SIZE   (16 * 1024 * 1024)
 #define USB_BASE     0x402E0000
 #define USB_SIZE     0x00004000
+#define USDHC1_BASE  0x402C0000
+#define USDHC1_SIZE  0x00004000
 
 #define SYSTICK_IRQ  15
 #define USB_IRQ      (113 + 16)
+#define USDHC1_IRQ   (110 + 16)
 
 #define JIT_POOL_SIZE 6
 #define JIT_MEM_SIZE (8 * 1024)
@@ -43,8 +46,6 @@ const std::map<u32, u32> constValues = {
     {0x400D8070, 1 << 31},    // CCM_ANALOG_PLL_AUDIO_LOCK
     {0x400C4020, 1 << 0},     // ADC_HS_COCO0
     {0x400C8020, 1 << 0},     // ADC_HS_COCO0
-    {0x402C0024, 1 << 3},     // SDHC_PRSSTAT_SDSTB
-    {0x402C0030, 3},          // SDHC_IRQSTAT_CC | SDHC_IRQSTAT_TC
 };
 
 M8Emulator::M8Emulator() :
@@ -54,6 +55,7 @@ M8Emulator::M8Emulator() :
     flash(FLASH_BASE, FLASH_SIZE),
     extraMemory(EXTRA_MEM_BASE, EXTRA_MEM_SIZE),
     usb(callbacks, USB_BASE, USB_SIZE),
+    sdhc(callbacks, USDHC1_BASE, USDHC1_SIZE),
     monitor(1)
 {
     callbacks.BindDevice(&itcm);
@@ -62,7 +64,9 @@ M8Emulator::M8Emulator() :
     callbacks.BindDevice(&flash);
     callbacks.BindDevice(&extraMemory);
     callbacks.BindDevice(&usb);
+    callbacks.BindDevice(&sdhc);
     usb.BindInterrupt(USB_IRQ, [this](int irq) { TriggerInterrupt(irq); });
+    sdhc.BindInterrupt(USDHC1_IRQ, [this](int irq) { TriggerInterrupt(irq); });
 
     config.page_table = &callbacks.PageTable();
     config.callbacks = &callbacks;
