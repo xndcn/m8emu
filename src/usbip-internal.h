@@ -1,37 +1,8 @@
 #pragma once
 
-#include <cstdint>
+#include "common.h"
 
 namespace m8 {
-
-template <typename T>
-T swap(const T& arg)
-{
-#if BYTE_ORDER == BIG_ENDIAN
-    return arg;             // no byte-swapping needed
-#else                       // swap bytes
-    T ret;
-    char* dst = reinterpret_cast<char*>(&ret);
-    const char* src = reinterpret_cast<const char*>(&arg + 1);
-    for (size_t i = 0; i < sizeof(T); i++)
-        *dst++ = *--src;
-    return ret;
-#endif
-}
-
-template <typename T>
-class __attribute__ ((__packed__)) BigEndian
-{
-    T value;
-
-public:
-    BigEndian() { }
-    BigEndian(const T& t) : value(swap(t)) { }
-    operator T() const { return swap(value); }
-};
-
-using be_uint16_t = BigEndian<uint16_t>;
-using be_uint32_t = BigEndian<uint32_t>;
 
 struct __attribute__ ((__packed__)) OP_REQ_HEADER {
     be_uint16_t version;
