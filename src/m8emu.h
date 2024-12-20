@@ -4,6 +4,7 @@
 #include "io.h"
 #include "timer.h"
 #include "usb.h"
+#include "usdhc.h"
 #include "dynarmic/interface/A32/config.h"
 #include "dynarmic/interface/exclusive_monitor.h"
 #include <memory>
@@ -27,6 +28,7 @@ public:
     void AttachInitializeCallback(std::function<void()> callback) { initializeCallbacks.push_back(callback); }
 
     m8::USBDevice& USBDevice() { return usb; }
+    USDHC& SDDevice() { return sdhc; }
 
 private:
     void UpdateVectorTables(u32 addr);
@@ -43,6 +45,8 @@ private:
     MemoryDevice flash;
     MemoryDevice extraMemory;
     USB usb;
+    USDHC sdhc;
+
     u32 systick_millis_count = 0;
     u32 SNVS_LPCR = 0;
     u32* vectorTables = nullptr;
