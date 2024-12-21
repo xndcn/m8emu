@@ -17,6 +17,7 @@ struct AudioPipeline {
     u32 update_func;
     std::set<std::tuple<u32, int>> inputs;
     std::set<std::tuple<u32, int>> outputs;
+    std::set<u32> successors;
 };
 
 class M8AudioProcessor {
@@ -33,6 +34,8 @@ public:
 
 private:
     void ParseConnections(u32 first_update);
+    void AnalyseSuccessors();
+
     void ProcessLoop();
 
 private:

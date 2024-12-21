@@ -157,6 +157,7 @@ void M8AudioProcessor::Setup()
         }
         u32 first_update = emu.Callbacks().MemoryRead32(config.GetSymbolAddress("AudioStream::first_update"));
         ParseConnections(first_update);
+        AnalyseSuccessors();
 
         std::vector<std::tuple<u32, u32>> ranges = {
             config.GetEntryRange("AudioStream_F32::transmit"),
@@ -241,6 +242,53 @@ void M8AudioProcessor::ParseConnections(u32 first_update)
     pipelineFinished.resize(pipelines.size());
 }
 
+void M8AudioProcessor::AnalyseSuccessors()
+{
+    std::set<u32> current;
+    for (const auto& [ptr, pipeline] : pipelineMap) {
+        if (pipeline.inputs.empty() || pipeline.index == 0) {
+            current.insert(pipeline.this_ptr);
+        }
+    }
+
+    std::set<u32> visited = current;
+    while (!current.empty()) {
+        std::set<u32> next;
+        for (auto ptr : current) {
+            auto& pipeline = PIPELINE(ptr);
+            pipeline.successors.clear();
+
+            for (auto [dst_ptr, _] : pipeline.outputs) {
+                bool ready = true;
+                if (ready) {
+                    for (auto [src_ptr, __] : PIPELINE(dst_ptr).inputs) {
+                        if (PIPELINE(src_ptr).index < PIPELINE(dst_ptr).index) {
+                            ready = false;
+                            break;
+                        }
+                    }
+                }
+                if (ready) {
+                    for (auto [out_ptr, __] : PIPELINE(dst_ptr).outputs) {
+                        if (PIPELINE(out_ptr).index < PIPELINE(dst_ptr).index) {
+                            ready = false;
+                            break;
+                        }
+                    }
+                }
+                if (ready) {
+                    pipeline.successors.insert(dst_ptr);
+                    if (!visited.count(dst_ptr)) {
+                        visited.insert(dst_ptr);
+                        next.insert(dst_ptr);
+                    }
+                }
+            }
+        }
+        current = next;
+    }
+}
+
 void M8AudioProcessor::ProcessLoop()
 {
     while (running) {
@@ -258,40 +306,28 @@ void M8AudioProcessor::ProcessLoop()
 
         std::unique_lock lock(workMutex);
         finishedPipelines.insert(ptr);
-        for (auto [dst_ptr, _] : pipeline.outputs) {
-            bool ready = !visitedPipelines.count(dst_ptr) && !readyPipelines.count(dst_ptr);
-            if (ready) {
-                for (auto [src_ptr, __] : PIPELINE(dst_ptr).inputs) {
-                    if (PIPELINE(src_ptr).index < PIPELINE(dst_ptr).index && !finishedPipelines.count(src_ptr)) {
-                        ready = false;
-                        break;
-                    }
-                }
-            }
-            if (ready) {
-                for (auto [out_ptr, __] : PIPELINE(dst_ptr).outputs) {
-                    if (PIPELINE(out_ptr).index < PIPELINE(dst_ptr).index && !finishedPipelines.count(out_ptr)) {
-                        ready = false;
-                        break;
-                    }
-                }
-            }
-            if (ready) {
-                readyPipelines.insert(dst_ptr);
-                workReady.notify_all();
+        pipelineFinished[pipeline.index] = true;
+        bool ready = false;
+        for (auto next : pipeline.successors) {
+            if (!visitedPipelines.count(next) && !readyPipelines.count(next)) {
+                readyPipelines.insert(next);
+                ready = true;
             }
         }
-        pipelineFinished[pipeline.index] = true;
         for (int i = 0; i < pipelineFinished.size(); i++) {
             if (!pipelineFinished[i]) {
                 if (!visitedPipelines.count(pipelines[i]) && !readyPipelines.count(pipelines[i])) {
                     readyPipelines.insert(pipelines[i]);
-                    workReady.notify_all();
+                    ready = true;
                 }
                 break;
             }
         }
-        workDone.notify_one();
+        if (ready) {
+            workReady.notify_all();
+        } else {
+            workDone.notify_one();
+        }
     }
 }
 
