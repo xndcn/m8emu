@@ -187,7 +187,7 @@ void USB::UpdateEndpointListAddress(u32 address)
     endpointQueueHead = (EndpointQueueHead*)callbacks.MemoryMap(address);
 }
 
-void USB::HandleSetupPacket(USBIP_SETUP_BYTES setup, const u8* data, std::size_t length, std::function<void(const u8*, std::size_t)> callback)
+void USB::HandleSetupPacket(USBSetupBytes setup, const u8* data, std::size_t length, std::function<void(const u8*, std::size_t)> callback)
 {
     callbacks.Lock();
     assert(endpointQueueHead != nullptr);

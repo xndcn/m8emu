@@ -42,18 +42,13 @@ struct  __attribute__ ((__packed__)) USBIP_HEADER_BASIC {
     be_uint32_t ep;
 };
 
-struct __attribute__ ((__packed__)) USBIP_SETUP_BYTES {
-    uint32_t bytes0;
-    uint32_t bytes1;
-};
-
 struct __attribute__ ((__packed__)) USBIP_CMD_SUBMIT : public USBIP_HEADER_BASIC {
     be_uint32_t transfer_flags;
     be_uint32_t transfer_buffer_length;
     be_uint32_t start_frame;
     be_uint32_t number_of_packets;
     be_uint32_t interval;
-    USBIP_SETUP_BYTES setup;
+    USBSetupBytes setup;
 };
 
 struct __attribute__ ((__packed__)) USBIP_ISOC_DESC
@@ -70,7 +65,7 @@ struct __attribute__ ((__packed__)) USBIP_RET_SUBMIT : public USBIP_HEADER_BASIC
     be_uint32_t start_frame;
     be_uint32_t number_of_packets;
     be_uint32_t error_count;
-    USBIP_SETUP_BYTES setup;
+    USBSetupBytes setup;
 };
 
 } // namespace m8

@@ -1,6 +1,5 @@
 #pragma once
 
-#include "usbip-internal.h"
 #include "emu.h"
 #include "timer.h"
 #include <ext/cqueue.h>
@@ -8,9 +7,30 @@
 
 namespace m8 {
 
+struct __attribute__ ((__packed__)) USBSetupBytes {
+    union {
+        struct {
+            union {
+                struct {
+                    u8 bmRequestType;
+                    u8 bRequest;
+                };
+                u16 wRequestAndType;
+            };
+            u16 wValue;
+            u16 wIndex;
+            u16 wLength;
+        };
+        struct {
+            u32 bytes0;
+            u32 bytes1;
+        };
+    };
+};
+
 class USBDevice {
 public:
-    virtual void HandleSetupPacket(USBIP_SETUP_BYTES setup, const u8* data, std::size_t length, std::function<void(const u8*, std::size_t)> callback) = 0;
+    virtual void HandleSetupPacket(USBSetupBytes setup, const u8* data, std::size_t length, std::function<void(const u8*, std::size_t)> callback) = 0;
     virtual void HandleDataWrite(int ep, int interval, const u8* data, std::size_t length) = 0;
     virtual void HandleDataRead(int ep, int interval, std::size_t limit, std::function<void(const u8*, std::size_t)> callback) = 0;
 };
@@ -20,21 +40,6 @@ enum class EndpointType {
     Isochronous = 1,
     Bulk = 2,
     Interrupt = 3,
-};
-
-struct __attribute__ ((__packed__)) SetupBytes {
-    union {
-        struct {
-            uint32_t bytes0;
-            uint32_t bytes1;
-        };
-        struct {
-            uint16_t wRequestAndType;
-            uint16_t wValue;
-            uint16_t wIndex;
-            uint16_t wLength;
-        };
-    };
 };
 
 struct __attribute__ ((__packed__)) EndpointQueueHead {
@@ -48,7 +53,7 @@ struct __attribute__ ((__packed__)) EndpointQueueHead {
     u32 bufferPointer3;
     u32 bufferPointer4;
     u32 reserved;
-    SetupBytes setup;
+    USBSetupBytes setup;
     u32 padding[4];
 };
 
@@ -68,7 +73,7 @@ class USB : public RegisterDevice, public USBDevice {
 public:
     USB(CoreCallbacks& callbacks, u32 baseAddr, u32 size);
 
-    void HandleSetupPacket(USBIP_SETUP_BYTES setup, const u8* data, std::size_t length, std::function<void(const u8*, std::size_t)> callback) override;
+    void HandleSetupPacket(USBSetupBytes setup, const u8* data, std::size_t length, std::function<void(const u8*, std::size_t)> callback) override;
     void HandleDataWrite(int ep, int interval, const u8* data, std::size_t length) override;
     void HandleDataRead(int ep, int interval, std::size_t limit, std::function<void(const u8*, std::size_t)> callback) override;
 

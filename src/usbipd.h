@@ -5,7 +5,7 @@
 #include <vector>
 #include <ext/cqueue.h>
 #include <functional>
-#include "usb.h"
+#include <usb.h>
 #include "usbip-internal.h"
 
 namespace m8 {
