@@ -1,6 +1,9 @@
 '*':
   configs:
     audio_processor_nums: 2
+    serial_max_packet_size: 512
+    serial_input_endpoint: 3
+    serial_output_endpoint: 3
 
 M8_V3_3_3_HEADLESS.hex:
   md5sum: 8709541ec9308c5b9c9fb6c318884f40
