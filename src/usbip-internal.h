@@ -43,8 +43,24 @@ struct  __attribute__ ((__packed__)) USBIP_HEADER_BASIC {
 };
 
 struct __attribute__ ((__packed__)) USBIP_SETUP_BYTES {
-    uint32_t bytes0;
-    uint32_t bytes1;
+    union {
+        struct {
+            union {
+                struct {
+                    uint8_t bmRequestType;
+                    uint8_t bRequest;
+                };
+                uint16_t wRequestAndType;
+            };
+            uint16_t wValue;
+            uint16_t wIndex;
+            uint16_t wLength;
+        };
+        struct {
+            uint32_t bytes0;
+            uint32_t bytes1;
+        };
+    };
 };
 
 struct __attribute__ ((__packed__)) USBIP_CMD_SUBMIT : public USBIP_HEADER_BASIC {
