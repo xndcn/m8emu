@@ -16,7 +16,7 @@ void M8USBHost::Setup()
     serialInputEndpoint = config.GetValue<u32>("serial_input_endpoint");
     serialOutputEndpoint = config.GetValue<u32>("serial_output_endpoint");
 
-    USBIP_SETUP_BYTES setup;
+    USB_SETUP_BYTES setup;
     setup.wRequestAndType = 0x900;
     setup.wValue = 1;
     device.HandleSetupPacket(setup, nullptr, 0, [this](uint8_t*, std::size_t) {

@@ -1,9 +1,9 @@
-#include "m8emu.h"
-#include "m8audio.h"
-#include "usbipd.h"
-#include "sdcard.h"
+#include <m8emu.h>
+#include <m8audio.h>
+#include <sdcard.h>
 #include <thread>
-#include "config.h"
+#include <config.h>
+#include "usbipd.h"
 
 using namespace m8;
 

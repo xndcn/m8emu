@@ -1,6 +1,5 @@
 #pragma once
 
-#include "usbip-internal.h"
 #include "emu.h"
 #include "timer.h"
 #include <ext/cqueue.h>
@@ -8,9 +7,30 @@
 
 namespace m8 {
 
+struct __attribute__ ((__packed__)) USB_SETUP_BYTES {
+    union {
+        struct {
+            union {
+                struct {
+                    uint8_t bmRequestType;
+                    uint8_t bRequest;
+                };
+                uint16_t wRequestAndType;
+            };
+            uint16_t wValue;
+            uint16_t wIndex;
+            uint16_t wLength;
+        };
+        struct {
+            uint32_t bytes0;
+            uint32_t bytes1;
+        };
+    };
+};
+
 class USBDevice {
 public:
-    virtual void HandleSetupPacket(USBIP_SETUP_BYTES setup, uint8_t* data, std::size_t length, std::function<void(uint8_t*, std::size_t)> callback) = 0;
+    virtual void HandleSetupPacket(USB_SETUP_BYTES setup, uint8_t* data, std::size_t length, std::function<void(uint8_t*, std::size_t)> callback) = 0;
     virtual void HandleDataWrite(int ep, int interval, uint8_t* data, std::size_t length) = 0;
     virtual void HandleDataRead(int ep, int interval, std::size_t limit, std::function<void(uint8_t*, std::size_t)> callback) = 0;
 };
@@ -68,7 +88,7 @@ class USB : public RegisterDevice, public USBDevice {
 public:
     USB(CoreCallbacks& callbacks, u32 baseAddr, u32 size);
 
-    void HandleSetupPacket(USBIP_SETUP_BYTES setup, uint8_t* data, std::size_t length, std::function<void(uint8_t*, std::size_t)> callback) override;
+    void HandleSetupPacket(USB_SETUP_BYTES setup, uint8_t* data, std::size_t length, std::function<void(uint8_t*, std::size_t)> callback) override;
     void HandleDataWrite(int ep, int interval, uint8_t* data, std::size_t length) override;
     void HandleDataRead(int ep, int interval, std::size_t limit, std::function<void(uint8_t*, std::size_t)> callback) override;
 

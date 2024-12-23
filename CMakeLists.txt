@@ -15,17 +15,22 @@ set(CAPSTONE_ARCHITECTURE_DEFAULT OFF)
 set(CAPSTONE_ARM_SUPPORT ON)
 add_subdirectory(externals/capstone)
 
-set(UVW_BUILD_LIBS ON)
-add_subdirectory(externals/uvw)
-
 add_subdirectory(ext)
-
 
 file(READ firmware.yaml FIRMWARE_YAML)
 configure_file(src/firmware.yaml.h.in firmware.yaml.h @ONLY)
 add_library(headers INTERFACE)
-target_include_directories(headers INTERFACE "${CMAKE_CURRENT_SOURCE_DIR}/" "${CMAKE_CURRENT_BINARY_DIR}/")
+target_include_directories(headers INTERFACE "${CMAKE_CURRENT_SOURCE_DIR}/" "${CMAKE_CURRENT_BINARY_DIR}/" "${CMAKE_CURRENT_SOURCE_DIR}/src/")
 
-file(GLOB SRC "src/*.cpp")
-add_executable(${APP_NAME} ${SRC})
-target_link_libraries(${APP_NAME} dynarmic ihex ext headers uvw cqueue)
+file(GLOB LIB "src/*.cpp")
+add_library(${APP_NAME} ${LIB})
+target_link_libraries(${APP_NAME} PRIVATE ihex ext cqueue)
+target_link_libraries(${APP_NAME} PUBLIC dynarmic headers)
+
+set(UVW_BUILD_LIBS ON)
+add_subdirectory(externals/uvw)
+
+file(GLOB SRC "demo/*.cpp")
+add_executable(${APP_NAME}-bin ${SRC})
+target_link_libraries(${APP_NAME}-bin ${APP_NAME} uvw)
+set_target_properties(${APP_NAME}-bin PROPERTIES OUTPUT_NAME ${APP_NAME})
