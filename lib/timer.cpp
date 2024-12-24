@@ -14,12 +14,15 @@ Timer::Timer()
                 now = std::chrono::steady_clock::now();
             }
             if (enabled) {
-                std::this_thread::sleep_until(now + interval);
+                working = true;
+                wakeup.wait_until(lock, now + interval);
                 now = std::chrono::steady_clock::now();
                 callback(*this);
                 if (oneshot) {
-                    Stop();
+                    enabled = false;
                 }
+                working = false;
+                wakeup.notify_all();
             }
         }
     });
@@ -29,6 +32,7 @@ Timer::~Timer()
 {
     if (running) {
         running = false;
+        enabled = false;
         wakeup.notify_all();
         thread.join();
     }
@@ -58,7 +62,9 @@ void Timer::Start()
 
 void Timer::Stop()
 {
+    std::unique_lock lock(mutex);
     enabled = false;
+    wakeup.wait(lock, [this]() { return !working; });
 }
 
 } // namespace m8

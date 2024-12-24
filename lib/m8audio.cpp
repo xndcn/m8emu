@@ -66,6 +66,17 @@ M8AudioProcessor::M8AudioProcessor(M8Emulator& emu) : emu(emu)
 {
 }
 
+M8AudioProcessor::~M8AudioProcessor()
+{
+    timer.Stop();
+    running = false;
+    workReady.notify_all();
+    workDone.notify_all();
+    for (auto& t : pool) {
+        t.join();
+    }
+}
+
 enum class LockType {
     Block,
     USB,
@@ -253,7 +264,10 @@ void M8AudioProcessor::ProcessLoop()
         u32 ptr = 0;
         {
             std::unique_lock lock(workMutex);
-            workReady.wait(lock, [this]() { return !readyPipelines.empty(); });
+            workReady.wait(lock, [this]() { return !readyPipelines.empty() || !running; });
+            if (!running) {
+                break;
+            }
             ptr = *readyPipelines.begin();
             readyPipelines.erase(ptr);
             visitedPipelines.insert(ptr);
@@ -322,7 +336,7 @@ void M8AudioProcessor::Process()
             }
         }
         workReady.notify_all();
-        workDone.wait(lock, [this] () { return finishedPipelines.size() == pipelineMap.size(); });
+        workDone.wait(lock, [this] () { return finishedPipelines.size() == pipelineMap.size() || !running; });
     }
     auto duration = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now() - now).count();
     if (duration > AUDIO_PROCESS_INTERVAL.count()) {

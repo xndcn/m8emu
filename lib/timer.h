@@ -20,6 +20,7 @@ public:
 private:
     std::atomic<bool> running{false};
     std::atomic<bool> enabled{false};
+    std::atomic<bool> working{false};
     bool oneshot = false;
     std::function<void(Timer&)> callback;
     std::chrono::microseconds interval;

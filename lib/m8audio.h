@@ -21,6 +21,7 @@ struct AudioPipeline {
 class M8AudioProcessor {
 public:
     M8AudioProcessor(M8Emulator& emu);
+    ~M8AudioProcessor();
     void Setup();
     void Process();
 
